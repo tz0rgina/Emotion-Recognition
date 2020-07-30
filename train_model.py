@@ -98,30 +98,6 @@ def plot_accuracy_and_loss(history):
 	plt.legend()
 	plt.show()
 
-def labels_as_emotions(labels):
-	labels[labels == 0] = 'anger'
-	labels[labels == 1] = 'fear'
-	labels[labels == 2] = 'happiness'
-	labels[labels == 3] = 'neutral'
-	labels[labels == 4] = 'sadness'
-	return labels 
-
-def print_confusion_matrix(model, X_test , Y_test):
-	pred = model.predict(np.array(X_test))
-	actual_results = []
-	predicted_results = []
-	for i in range(len(Y_test)):
-		actual_results.append(np.argmax(Y_test[i]))
-		predicted_results.append(np.argmax(pred[i]))
-
-	actual_labels=labels_as_emotions(predicted_results)
-	predicted_labels=labels_as_emotions(predicted_results)
-	
-	actual_labels=pd.Series(actual_labels, name="Actual")	
-	predicted_labels=pd.Series(predicted_labels, name="Predicted")	
-	
-	print(pd.crosstab(actual_labels,predicted_labels))
-
 """
 Prepares data for training.
 For GREY : (kind_of_data, noOfchannels)=("specs", 1)
@@ -170,6 +146,6 @@ X_train, Y_train, X_test, Y_test=data_preperation("RGBa", 4)
 model , history= train(X_train, Y_train, X_test, Y_test, batch_size=64, epochs=300, input_channels=4, 					
                            model_name= 'RGBA_model', history_name='RGBA_history')  
 
-
+plot_accuracy_and_loss(history)
 
 
