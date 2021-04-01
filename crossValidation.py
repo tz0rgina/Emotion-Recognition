@@ -6,7 +6,6 @@ set_random_seed(0)
 import os
 os.environ['PYTHONHASHSEED']=str(0)
 import random as rnd
-
 rnd.seed(0)
 
 import tensorflow as tf
@@ -81,17 +80,6 @@ def make_prediction(model, X_test, Y_test):
     print(predicted_results)
     print(actual_results)
     return actual_results,predicted_results
-
-"""   	   
-def get_f1(y_true, y_pred): #taken from old keras source code
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-    precision = true_positives / (predicted_positives + K.epsilon())
-    recall = true_positives / (possible_positives + K.epsilon())
-    f1_val = 2*(precision*recall)/(precision+recall+K.epsilon())
-    return f1_val	   
-"""
    
 # fit a model and plot learning curve
 def fit_model(X_train, Y_train, X_test, Y_test, index):
@@ -99,20 +87,6 @@ def fit_model(X_train, Y_train, X_test, Y_test, index):
     
     # Cleanup
     K.clear_session()
-    
-    """
-    curr_session = tensorflow.compat.v1.get_default_session()
-    # close current session
-    if curr_session is not None:
-        curr_session.close()
-    # reset graph
-    K.clear_session()
-    # create new session
-    s = tensorflow.compat.v1.InteractiveSession()
-    tensorflow.compat.v1.keras.backend.set_session(s)
-    
-    tensorflow.keras.mixed_precision.experimental.set_policy('mixed_float16')
-    """
         
     # define model
     model=Sequential()
@@ -185,13 +159,6 @@ def fit_model(X_train, Y_train, X_test, Y_test, index):
     recall = 100*recall_score(actual_results, predicted_results, average = 'macro')
     precision = 100 *precision_score(actual_results , predicted_results, average = 'macro')
     
-    """
-    print (score)
-    recall=score[2]
-    precision=score[3]
-    accuracy=score[1]
-    f1=(2*precision*recall)/(precision+recall)
-    """
     print("Model stopped at epoch : " + str(len(history.history['acc'])))
     
     return accuracy, recall , precision , f1 , history
@@ -294,11 +261,6 @@ def crossValidation(fig_title):
     print("----------------------------------------------------------------------------------------")
     print("Mean : [accuracy , recall , precision , f1] = " + str([sum_acc , sum_recall , sum_precision , sum_f1]))
     
-    """
-    plt.savefig('/media/gpu2/GpuTwo/georgia/EMOVO/figures/' + fig_title + '.png')
-    plt.show()
-    plt.close(fig)
-    """
     folder= '/media/gpu2/GpuTwo/georgia/EMOVO/figures/tuning' 
     fname =  fig_title + '.png'
     print(fname)
@@ -306,19 +268,7 @@ def crossValidation(fig_title):
     #plt.show()
 
     return acc_list , recall_list , precision_list , f1_list
-    
-"""  
-np.random.seed(0) 
-
-splits =5
-wd_param = 0.008
-momentum = 0.9
-initial_lr = 0.001
-drop = 0.1
-epochs_drop = 20
-batch_size = 64
-epochs = 100
-"""    
+        
 fig_title = "final_valildation_GERMAN"     
 crossValidation(fig_title)
 
