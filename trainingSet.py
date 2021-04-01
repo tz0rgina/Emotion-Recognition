@@ -1,5 +1,13 @@
+import random as rnd
+
+rnd.seed(0)
+from numpy.random import seed
+seed(0)
+from tensorflow import set_random_seed
+set_random_seed(0)
 from skimage.transform import resize
 import os
+os.environ['PYTHONHASHSEED']=str(0)
 import numpy as np
 from tqdm import tqdm
 from scipy.fftpack import fft
@@ -9,11 +17,14 @@ from pyAudioAnalysis import ShortTermFeatures as sF
 from pyAudioAnalysis import audioBasicIO
 from AudioDataAugm import generator
 from sklearn.model_selection import train_test_split 
-import random
+from numpy import random
 from PIL import Image
 import matplotlib.pyplot as plt
 import cv2
-    
+from tensorflow.keras.utils import to_categorical
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+
 def spectrogram(signal, sampling_rate, window, step, plot=False,
                 show_progress=False):
     """
@@ -85,15 +96,17 @@ def createSpecgramImage(signal, Fs, stWin, stStep):
     
     x = audioBasicIO.stereo_to_mono(signal)
     specgramOr, TimeAxis, FreqAxis = spectrogram(x, Fs, round(Fs * stWin), round(Fs * stStep), False) 
-    
+    """
     specgram_RGBa=cv2.resize(specgramOr, (250,250),interpolation = cv2.INTER_LINEAR)
     RGBa_image = Image.fromarray(np.uint8(plt.cm.jet(specgram_RGBa)*255))
-    
+    RGBimage = Image.fromarray(np.uint8(plt.cm.jet(specgram)*255))
+    img=RGBimage.convert("RGB")
+    """
     specgram=resize(specgramOr, (250,250))
-    RGBimage = Image.fromarray(np.uint8(plt.cm.jet(specgram)*255),mode='RGB')
-    #print(np.asarray(RGBimage).shape)
-    #print(np.asarray(specgram).shape)
-    return np.asarray(RGBimage) , specgram , np.asarray(RGBa_image)
+    img = Image.fromarray(np.uint8(plt.cm.jet(specgram)*255), mode='RGB')
+    
+    #return np.asarray(img) , specgram , np.asarray(RGBa_image)
+    return np.asarray(img)
 
 
 def get_2sec_segment(fs, signal):
@@ -110,7 +123,7 @@ def get_2sec_segment(fs, signal):
     
     segment_duration=0
     while(segment_duration<1):
-        random_segment=segments[random.randint(0,len(segments)-1)]
+        random_segment=segments[rnd.randint(0,len(segments)-1)]
         segment_duration=random_segment.shape[0] / fs
     #print('Segment\'s Duration = {} seconds'.format(segment_duration))
     return(random_segment)   
@@ -120,11 +133,11 @@ def multiplyDataViaAugmentationSNR(initial_signals, initial_labels, initial_Fs, 
     new_signals=initial_signals
     new_labels=initial_labels
     new_Fs=initial_Fs
-    batch_size=len(initial_labels)
+    size=len(initial_labels)
     
     for SNR in SNR_list:
         
-        gen_SNR=generator(initial_signals, initial_labels, initial_Fs, batch_size, shuffle , SNR)
+        gen_SNR=generator(initial_signals, initial_labels, initial_Fs, size, shuffle , SNR)
         aug_signals,aug_labels,aug_fs=next(gen_SNR)
         new_signals=np.concatenate((new_signals,aug_signals),axis=0)
         new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
@@ -143,9 +156,10 @@ def multiplyDataViaAugmentationSNR(initial_signals, initial_labels, initial_Fs, 
     #specgram, TimeAxis, FreqAxis = sF.spectrogram(x, fs, round(fs * 0.004), round(fs * 0.002), True)
     """
     return [new_signals, new_labels, new_Fs]
-    
+
+"""   
 def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuffle):
-              
+           
     new_signals=initial_signals
     print(np.asarray(new_signals).shape)
     new_labels=initial_labels
@@ -153,9 +167,11 @@ def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuf
     batch_size=len(initial_labels)
     print(batch_size)
     
+    
     #Augmentation with Noise..
     SNR=random.randint(3,5)
-    gen=generator(initial_signals, initial_labels, initial_Fs, batch_size,True,SNR)
+    print(SNR)
+    #gen=generator(initial_signals, initial_labels, initial_Fs, batch_size,True,SNR)
     gen_noise=generator(initial_signals, initial_labels, initial_Fs, batch_size, 
                         shuffle , noise_factor=SNR)
     aug_signals,aug_labels,aug_fs=next(gen_noise)
@@ -165,6 +181,7 @@ def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuf
     new_labels=np.concatenate((new_labels,aug_labels),axis=0)
     print(new_signals.shape)
     print("Augmentation with Noise - complete")
+    
     
     #Augmentation with Shifting Wavfile..
     gen_shift=generator(initial_signals, initial_labels, initial_Fs, batch_size, 
@@ -178,7 +195,9 @@ def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuf
     print(new_signals.shape)    
     print("Augmentation with Shifting Wavfile - complete")
     
+    
     factor = np.random.uniform(low=0.9, high = 1.1)
+    print(factor)
     #factor = 1.0  / length_change
     
     #Augmentation by changing pitch..
@@ -205,41 +224,234 @@ def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuf
     new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
     new_labels=np.concatenate((new_labels,aug_labels),axis=0)
     print(new_signals.shape)
+    print("Augmentation by changing speed- complete")
+    
+    
+    print("End of Data Augmentation with SNR : " + str(SNR))
+    print("                       and factor : " + str(factor))
+
+    return [new_signals, new_labels, new_Fs]
+    
+"""
+
+def multiplyDataViaAugmentation(initial_signals, initial_labels, initial_Fs,shuffle):
+           
+    new_signals=initial_signals
+    print(np.asarray(new_signals).shape)
+    new_labels=initial_labels
+    new_Fs=initial_Fs
+    size=len(initial_labels)
+    print(size)
+    
+    
+    #Augmentation with Noise..
+    #SNR=random.randint(3,5)
+    #print(SNR)
+    #gen=generator(initial_signals, initial_labels, initial_Fs, batch_size,True,SNR)
+    gen_noise=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=-1)
+    aug_signals,aug_labels,aug_fs=next(gen_noise)
+    print(np.asarray(aug_signals).shape) 
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation with Noise - complete")
+    
+    
+    #Augmentation with Shifting Wavfile..
+    gen_shift=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=1, shift_direction='both')
+    aug_signals,aug_labels,aug_fs=next(gen_shift)
+    #print(aug_signals) 
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)    
+    print("Augmentation with Shifting Wavfile - complete")
+    
+    
+    #factor = np.random.uniform(low=0.9, high = 1.1)
+    #print(factor)
+    #factor = 1.0  / length_change
+    
+    #Augmentation by changing pitch..
+    gen_pitch=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=-1)                    
+    aug_signals,aug_labels,aug_fs=next(gen_pitch)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
     print("Augmentation by changing pitch - complete")
-     
+    
+    #Augmentation by changing speed..
+    #print("resample length_change = ",length_change)
+    gen_speed=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=0,
+                        speed_factor=-1)
+    aug_signals,aug_labels,aug_fs=next(gen_speed)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation by changing speed- complete")
+
+    
+    
     print("End of Data Augmentation")
 
     return [new_signals, new_labels, new_Fs]
+    
+def DataAugmentation(initial_signals, initial_labels, initial_Fs,shuffle):
+           
+    new_signals=initial_signals
+    print(np.asarray(new_signals).shape)
+    new_labels=initial_labels
+    new_Fs=initial_Fs
+    size=len(initial_labels)
+    print(size)
+    
+    """
+    #Augmentation with Noise..
+    SNR=[3,4,5]
+    for snr in SNR:
+	    #gen=generator(initial_signals, initial_labels, initial_Fs, batch_size,True, snr])
+	    gen_noise=generator(initial_signals, initial_labels, initial_Fs, size, 
+		                shuffle , noise_factor=snr)
+	    aug_signals,aug_labels,aug_fs=next(gen_noise)
+	    print(np.asarray(aug_signals).shape) 
+	    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+	    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+	    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
 
-def prepareData(signals, fs, typeOfImage):
+	    print(new_signals.shape)
+    print("Augmentation with Noise - complete")
+    
+    """
+    
+    gen_noise=generator(initial_signals, initial_labels, initial_Fs, size, 
+		                shuffle , noise_factor=-1)
+    aug_signals,aug_labels,aug_fs=next(gen_noise)
+    print(np.asarray(aug_signals).shape) 
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation with Noise - complete")
+    
+    
+    #Augmentation with Shifting Wavfile..
+    gen_shift=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=1, shift_direction='both')
+    aug_signals,aug_labels,aug_fs=next(gen_shift)
+    #print(aug_signals) 
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)    
+    print("Augmentation with Shifting Wavfile - complete")
+    
+    
+    #Augmentation with Shifting & Noise ..
+    gen_shift=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=-1,
+                        shift_max=1, shift_direction='both')
+    aug_signals,aug_labels,aug_fs=next(gen_shift)
+    
+    #print(aug_signals) 
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)    
+    print("Augmentation with Shifting & Noise - complete")
+    
+
+    #Augmentation by changing pitch..
+    gen_pitch=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=-1)                    
+    aug_signals,aug_labels,aug_fs=next(gen_pitch)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation by changing pitch  - complete")
+    
+    #Augmentation by changing speed..
+    #print("resample length_change = ",length_change)
+    gen_speed=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=0,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=0,
+                        speed_factor=-1)
+    aug_signals,aug_labels,aug_fs=next(gen_speed)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation by changing speed - complete")
+    
+    #Augmentation by changing pitch & noise..
+    gen_pitch=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=-1,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=-1)                    
+    aug_signals,aug_labels,aug_fs=next(gen_pitch)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation by changing pitch & noise - complete")
+    
+    #Augmentation by changing speed and noise..
+    #print("resample length_change = ",length_change)
+    gen_speed=generator(initial_signals, initial_labels, initial_Fs, size, 
+                        shuffle , noise_factor=-1,
+                        shift_max=0, shift_direction=0,
+                        pitch_factor=0,
+                        speed_factor=-1)
+    aug_signals,aug_labels,aug_fs=next(gen_speed)
+    new_signals=np.concatenate((new_signals,aug_signals),axis=0)
+    new_Fs=np.concatenate((new_Fs,aug_fs),axis=0)
+    new_labels=np.concatenate((new_labels,aug_labels),axis=0)
+    print(new_signals.shape)
+    print("Augmentation by changing speed & noise - complete")   
+
+
+
+    print("End of Data Augmentation")
+
+    return [new_signals, new_labels, new_Fs]   
+
+
+def dataAsImage(signals, fs):
 
     RGB=[]
-    specgrams=[]
-    RGBa=[]
     stWin=0.04
     stStep=0.02
     
     for i,signal in enumerate(signals):
         segment=get_2sec_segment(fs[i],signal)
-        image, specgram, RGBa_image=createSpecgramImage(segment, fs[i], stWin, stStep)
-        RGB.append(image) 
-        specgrams.append(specgram)
-        RGBa.append(RGBa_image)
-        
-    if (typeOfImage=="specs"):
-        return specgrams
-    elif (typeOfImage=="RGB"):
-        return RGB
-    elif (typeOfImage=="RGBa"):
-        return RGBa
+        RGB.append(createSpecgramImage(segment, fs[i], stWin, stStep)) 
+  
+    return RGB
  
-def init_dataSet(typeOfImage):
-    
+def extractFilesFromDirectory(data_dir):
+
     files=[]
     labels=[]
     
-    data_dir = 'C:/MachineLearningPractice/emovo/EMOVOdata'
     emotion_dirs=[x[0] for x in os.walk(data_dir)]
+    #print (emotion_dirs)
     print (emotion_dirs[1:])
     #print("-----")
 
@@ -252,59 +464,80 @@ def init_dataSet(typeOfImage):
         for fname in emotion_files[0]: 
             files.append(fname)
             #print(fname)
-            labels.append(i)                                       
-                
-    #Splitting files
-    files_train, files_test, labels_train, Y_test = train_test_split(files, labels, train_size=0.8, shuffle=True)
+            labels.append(i)
+            
+    signals=[]
+    Fs=[]
 
- 
-    #files_train=np.asarray(files_train)
-    #print(files_train.shape)
-
-    #files_test=np.asarray(files_test)
-    #print(files_test)
-
-    #labels_train=np.asarray(labels_train)
-    #print(labels_train.shape)
-
-    #Y_test=np.asarray(Y_test)
-    #print(Y_test)
-    
-    #Producing training Set 
-    train_signals=[]
-    train_Fs=[]
-
-    for i,fname in enumerate(files_train) :
+    for i,fname in enumerate(files) :
         #print(emotion_dirs[labels_train[i]+1])
-        train_fs, train_signal = wavfile.read(os.path.join(emotion_dirs[labels_train[i]+1], fname))
-        train_signals.append(train_signal)
-        train_Fs.append(train_fs)
+        fs, signal = wavfile.read(os.path.join(emotion_dirs[labels[i]+1], fname))
+        signals.append(signal)
+        Fs.append(fs)
+    
+    return signals, Fs , labels
+    
+"""
+Prepares data for training.
+"""
+def data_preperation_as_CNN_input(X, Y):
+  
+	X=np.asarray(X)
+
+	Y=np.asarray(Y)
+
+	X=X.reshape((-1, 250, 250,3))
+
+	X = X.astype('float32')
+	
+	#X /= 255
+
+	Y = to_categorical(Y, 5)
+
+	return X, Y
+ 
+ 
+def init_dataSet():
+    
+    data_dir_train = '/media/gpu2/GpuTwo/georgia/EMOVO/EMOVOdataFinal/train'
+    
+    train_signals, train_Fs , labels_train=extractFilesFromDirectory(data_dir_train)                                        
         
     print ("Data Augmentation starts")
-    [train_signals, Y_train, train_Fs] = multiplyDataViaAugmentationSNR(train_signals, labels_train, train_Fs, [3,4,5], True)  
-    #[train_signals, Y_train, train_Fs]=multiplyDataViaAugmentation(train_signals, labels_train, train_Fs, True)  
+    #[train_signals, Y_train, train_Fs] = multiplyDataViaAugmentationSNR(train_signals, labels_train, train_Fs, [3,4,5], True)  
+    #[train_signals, Y_train, train_Fs]=multiplyDataViaAugmentation(train_signals, labels_train, train_Fs, True) 
+    [train_signals, Y_train, train_Fs]=DataAugmentation(train_signals, labels_train, train_Fs, True)   
     
     #Segmenting data on 2sec segments and producing its spegtrograms
-    X_train=prepareData(train_signals,train_Fs,typeOfImage)
-     
-    #Producing test Set 
-     
-    test_signals=[]
-    test_Fs=[] 
+    X_train=dataAsImage(train_signals, train_Fs)
     
-    for i,fname in enumerate(files_test):
-        
-        #print(emotion_dirs)
-        #print(name)
-        #print(emotion_dirs[y_test[i]+1])
-        test_fs, test_signal = wavfile.read(os.path.join(emotion_dirs[Y_test[i]+1], fname))
-        test_signals.append(test_signal)
-        test_Fs.append(test_fs)
+    X_train, Y_train = data_preperation_as_CNN_input(X_train, Y_train)
     
-    X_test=prepareData(test_signals,test_Fs, typeOfImage)
-
+    print(X_train.shape)
+    print(Y_train.shape)
     
-    return X_train, Y_train, X_test, Y_test
-  
-
-
+    data_dir_test = '/media/gpu2/GpuTwo/georgia/EMOVO/EMOVOdataFinal/test'
+    
+    """
+    test_signals, test_Fs , Y_test=extractFilesFromDirectory(data_dir_test)
+    
+    X_test=dataAsImage(test_signals,test_Fs)
+    
+    X_test, Y_test = data_preperation_as_CNN_input(X_test, Y_test)
+    """
+    
+    signals, Fs , Y =extractFilesFromDirectory(data_dir_test)
+    
+    X=dataAsImage(signals,Fs)
+    
+    X, Y = data_preperation_as_CNN_input(X, Y)
+    
+    X_test , X_val , Y_test , Y_val = train_test_split(X , Y , test_size = 0.5)
+    print(X_test.shape)
+    print(Y_test.shape)
+    
+    print(X_val.shape)
+    print(Y_val.shape)
+    
+    #return X_train, Y_train, X_test, Y_test
+    return X_train, Y_train, X_test, Y_test , X_val, Y_val
