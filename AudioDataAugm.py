@@ -1,9 +1,16 @@
-# Audio Data Augmentation
+#import random as rnd
+import os
+
+#rnd.seed(1)
+from numpy.random import seed
+seed(0)
+from tensorflow import set_random_seed
+set_random_seed(0)
+os.environ['PYTHONHASHSEED']=str(0)
 
 import numpy as np
 from sklearn.utils import shuffle as s
-import random
-import os
+
 import numpy as np
 from scipy.io import wavfile
 import IPython
@@ -17,6 +24,7 @@ import plotly
 from pyAudioAnalysis import audioAnalysis as AA
 from pyAudioAnalysis import ShortTermFeatures as sF
 from pyAudioAnalysis import audioBasicIO
+from numpy import random
 
 def print_figure(figure_name):
     
@@ -136,16 +144,17 @@ def changingSpeed(data, speed_factor):
 
     return augmented_data
 
-def generator(data, labels,fs, batch_size, shuffle , noise_factor=0, 
+def generator(data, labels,fs, size, shuffle , noise_factor=0, 
               shift_max=0, shift_direction=0,
               pitch_factor=0, 
               speed_factor=0):
 
     while True:
         if (shuffle):
-            sampling= random.choices(np.arange(len(labels)), k=batch_size)
+            #sampling= rnd.choices(np.arange(len(labels)), k=size)
+            sampling=random.permutation(np.arange(len(labels)))
         else:
-            sampling=np.arange(batch_size)
+            sampling=np.arange(size)
         
         batches=[]
         new_labels=[]
@@ -158,14 +167,26 @@ def generator(data, labels,fs, batch_size, shuffle , noise_factor=0,
         for j , batch in enumerate(batches):
             # Augmentation
             sample=batch
-            if (noise_factor!=0):
+            if (noise_factor > 0):
                 sample=addNoise(batch,noise_factor)
+            elif (noise_factor == -1):
+            	snr=random.randint(3,5)
+            	#print(snr)
+            	sample=addNoise(batch,snr)
             if (shift_max!=0):
                 sample=shiftingTime(sample, fs[i], shift_max, shift_direction)
-            if(pitch_factor!=0):
+            if(pitch_factor > 0):
                 sample=changingPitch(sample, fs[i], pitch_factor)
-            if (speed_factor!=0):
+            elif (pitch_factor == -1):
+            	factor=np.random.uniform(low=0.9, high = 1.1) 
+            	#print(factor)
+            	sample=changingPitch(sample, fs[i], factor)    
+            if (speed_factor > 0):
                 sample=changingSpeed(sample, speed_factor)
+            elif (speed_factor == -1):
+            	factor=np.random.uniform(low=0.9, high = 1.1) 
+            	#print(factor)
+            	sample=changingSpeed(sample, factor)   
             batches[j] = sample
        
 
